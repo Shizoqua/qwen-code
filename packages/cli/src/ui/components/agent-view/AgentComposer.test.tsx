@@ -400,6 +400,33 @@ describe('AgentComposer', () => {
       expect(size).toBe(tokenLimit('gpt-4o', 'input'));
     });
 
+    it("reads the session's route from inside the agent's runtime frame", async () => {
+      // Same model id as the session, but on another endpoint. Read inside the
+      // frame, the session config would be the agent's own route and the
+      // agent would borrow its inherited window.
+      const agentRoute = {
+        model: 'qwen3-coder-plus',
+        authType: 'openai',
+        baseUrl: 'https://other.example/v1',
+        contextWindowSize: 1_000_000,
+      };
+      registryWindows = {
+        'openai|qwen3-coder-plus|https://other.example/v1': 128_000,
+      };
+      const core = {
+        modelConfig: { model: 'qwen3-coder-plus' },
+        runtimeView: { contentGeneratorConfig: agentRoute },
+      };
+
+      const size = await runWithRuntimeContentGenerator(
+        { contentGeneratorConfig: agentRoute } as never,
+        async () =>
+          getAgentContextWindowSize(useConfig() as never, core as never),
+      );
+
+      expect(size).toBe(128_000);
+    });
+
     it("does not take another endpoint's entry when the route names no base URL", () => {
       agentModel = 'gpt-4o';
       agentRuntimeView = { contentGeneratorConfig: { authType: 'openai' } };

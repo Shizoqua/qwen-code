@@ -91,8 +91,10 @@ export function getAgentComposerLayoutKey(parts: {
  * declares none, and a cross-provider agent has no window at all.
  */
 export function getAgentContextWindowSize(
-  config: Pick<Config, 'getContentGeneratorConfig' | 'getModel'> &
-    Partial<Pick<Config, 'getModelsConfig'>>,
+  config: Pick<
+    Config,
+    'getContentGeneratorConfig' | 'getModel' | 'getModelsConfig'
+  >,
   core: Pick<AgentCore, 'modelConfig' | 'runtimeView'> | undefined,
 ): number | undefined {
   // The footer can render from inside the agent's own runtime frame, where
@@ -116,20 +118,19 @@ export function getAgentContextWindowSize(
     return sessionConfig?.contextWindowSize;
   }
   const route = ownRoute ?? sessionConfig;
-  const modelsConfig = config.getModelsConfig?.();
+  const modelsConfig = config.getModelsConfig();
   // Look up the entry for the route's own endpoint, then the one declared
   // without a base URL. `null` stops either lookup from taking an entry
   // declared for some other endpoint.
-  const declared =
-    route?.authType && modelsConfig
-      ? (
-          modelsConfig.getResolvedModel(
-            route.authType,
-            agentModel,
-            route.baseUrl ?? null,
-          ) ?? modelsConfig.getResolvedModel(route.authType, agentModel, null)
-        )?.generationConfig.contextWindowSize
-      : undefined;
+  const declared = route?.authType
+    ? (
+        modelsConfig.getResolvedModel(
+          route.authType,
+          agentModel,
+          route.baseUrl ?? null,
+        ) ?? modelsConfig.getResolvedModel(route.authType, agentModel, null)
+      )?.generationConfig.contextWindowSize
+    : undefined;
   // A declared window of 0 would divide the usage by zero.
   return declared !== undefined && declared > 0
     ? declared
