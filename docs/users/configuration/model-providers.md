@@ -674,6 +674,46 @@ reasoning parser enabled; on vLLM that is `--enable-auto-tool-choice`, a
 `--reasoning-parser qwen3`. Parser names change between server releases, so
 check your server's documentation.
 
+#### Context window and image input on local servers
+
+Qwen Code works out a model's context window and whether it accepts images
+from the model id. It drops provider prefixes such as `qwen/` or
+`hf.co/<user>/` and Ollama size tags such as `:32b` or `:latest`, then looks
+the name up in its bundled model catalog and built-in model tables. A model it
+does not recognize gets a 200K context window and text-only input. A value you
+set in `generationConfig` always takes precedence over the detected one.
+
+Two things the id cannot tell Qwen Code:
+
+- **The window your server actually runs with.** It is often smaller than the
+  model supports: vLLM's `--max-model-len`, llama.cpp's `-c` / `--ctx-size`, or
+  Ollama's `num_ctx` / `OLLAMA_CONTEXT_LENGTH`.
+- **Image input for a vision model the tables don't list.** A model treated as
+  text-only does not receive images directly.
+
+Declare both on the model entry:
+
+```json
+{
+  "id": "gemma3:27b",
+  "name": "Gemma 3 27B (Ollama)",
+  "envKey": "OLLAMA_API_KEY",
+  "baseUrl": "http://localhost:11434/v1",
+  "generationConfig": {
+    "contextWindowSize": 32768,
+    "modalities": { "image": true }
+  }
+}
+```
+
+With `contextWindowSize` set to the server's real window, auto-compaction (see
+`context.autoCompactThreshold` in [Settings](./settings.md)) starts before the
+server rejects a request. If a request still overflows and the server's error
+is one Qwen Code recognizes, such as llama.cpp's "exceeds the available context
+size" or Hugging Face TGI's "`inputs` tokens + `max_new_tokens` must be <=",
+Qwen Code compacts the conversation and retries once. An overflow error it
+does not recognize fails the request.
+
 ## Alibaba Cloud Coding Plan
 
 Alibaba Cloud Coding Plan provides a pre-configured set of Qwen models optimized for coding tasks. This feature is available for users with Alibaba Cloud Coding Plan API access and offers a simplified setup experience with automatic model configuration updates.
